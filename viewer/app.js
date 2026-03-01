@@ -26,8 +26,6 @@
 
   var ui = {
     fileInput: document.getElementById("fileInput"),
-    urlInput: document.getElementById("urlInput"),
-    loadUrlBtn: document.getElementById("loadUrlBtn"),
     searchInput: document.getElementById("searchInput"),
     categoryFilter: document.getElementById("categoryFilter"),
     subcategoryFilter: document.getElementById("subcategoryFilter"),
@@ -403,11 +401,6 @@
       };
       reader.readAsText(file);
     });
-
-    ui.loadUrlBtn.addEventListener("click", function () {
-      if (!ui.urlInput.value.trim()) return;
-      loadFromUrl(ui.urlInput.value.trim());
-    });
   }
 
   function loadFromText(text, sourceName) {
@@ -435,29 +428,5 @@
     setStatus("Loaded " + rows.length + " rows from " + sourceName + ".");
   }
 
-  function loadFromUrl(url) {
-    setStatus("Loading URL...");
-    fetch(url)
-      .then(function (resp) {
-        if (!resp.ok) throw new Error("HTTP " + resp.status);
-        return resp.text();
-      })
-      .then(function (text) {
-        loadFromText(text, url);
-      })
-      .catch(function (err) {
-        setStatus("Failed to load URL: " + err.message);
-      });
-  }
-
-  function maybeAutoloadFromQuery() {
-    var params = new URLSearchParams(window.location.search);
-    var data = params.get("data");
-    if (!data) return;
-    ui.urlInput.value = data;
-    loadFromUrl(data);
-  }
-
   setupControls();
-  maybeAutoloadFromQuery();
 })();
