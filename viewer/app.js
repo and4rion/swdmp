@@ -182,6 +182,35 @@
     return Number.isFinite(n) ? n : null;
   }
 
+  function sizeBytesMaybe(value) {
+    if (value == null) return null;
+    var raw = String(value).trim();
+    if (!raw) return null;
+
+    var match = raw.match(/^(\d+(?:[.,]\d+)?)\s*(B|KB|MB|GB|TB|KIB|MIB|GIB|TIB)$/i);
+    if (!match) return null;
+
+    var amount = Number(match[1].replace(",", "."));
+    if (!Number.isFinite(amount)) return null;
+
+    var unit = match[2].toUpperCase();
+    var factors = {
+      B: 1,
+      KB: 1000,
+      MB: 1000 * 1000,
+      GB: 1000 * 1000 * 1000,
+      TB: 1000 * 1000 * 1000 * 1000,
+      KIB: 1024,
+      MIB: 1024 * 1024,
+      GIB: 1024 * 1024 * 1024,
+      TIB: 1024 * 1024 * 1024 * 1024,
+    };
+
+    var factor = factors[unit];
+    if (!factor) return null;
+    return amount * factor;
+  }
+
   function dateMaybe(value) {
     if (!value) return null;
     var s = String(value).trim();
@@ -193,6 +222,12 @@
   function compareValues(a, b, field, direction) {
     var av = a[field];
     var bv = b[field];
+
+    var asz = sizeBytesMaybe(av);
+    var bsz = sizeBytesMaybe(bv);
+    if (asz != null && bsz != null) {
+      return direction === "asc" ? asz - bsz : bsz - asz;
+    }
 
     var ad = dateMaybe(av);
     var bd = dateMaybe(bv);
