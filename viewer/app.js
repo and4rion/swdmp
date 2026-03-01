@@ -2,6 +2,7 @@
   "use strict";
 
   var PAGE_SIZE = 100;
+  var STORAGE_KEY = "sharewood-archive-viewer-cache-v1";
   var state = {
     rows: [],
     filtered: [],
@@ -90,6 +91,35 @@
     var query = params.toString();
     var nextUrl = window.location.pathname + (query ? "?" + query : "") + window.location.hash;
     window.history.replaceState(null, "", nextUrl);
+  }
+
+  function saveDataToLocalStorage(text, sourceName) {
+    if (typeof text !== "string" || text.length > 4_500_000) {
+      return false;
+    }
+    try {
+      var payload = {
+        sourceName: sourceName || "local-file",
+        text: text,
+        savedAt: new Date().toISOString(),
+      };
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+      return true;
+    } catch (_err) {
+      return false;
+    }
+  }
+
+  function loadDataFromLocalStorage() {
+    try {
+      var raw = window.localStorage.getItem(STORAGE_KEY);
+      if (!raw) return null;
+      var payload = JSON.parse(raw);
+      if (!payload || typeof payload.text !== "string") return null;
+      return payload;
+    } catch (_err) {
+      return null;
+    }
   }
 
   function detectFormat(text, sourceName) {
@@ -510,7 +540,8 @@
     });
   }
 
-  function loadFromText(text, sourceName) {
+  function loadFromText(text, sourceName, options) {
+    options = options || {};
     var format = detectFormat(text, sourceName);
     var rows;
     if (format === "jsonl") rows = parseJsonLines(text);
@@ -537,9 +568,28 @@
     ui.sortDirection.value = urlPrefs.sortDirection;
 
     applyFilters();
+
+    if (!options.skipCacheWrite) {
+      var persisted = saveDataToLocalStorage(text, sourceName);
+      if (!persisted) {
+        setStatus("Loaded " + rows.length + " rows from " + sourceName + ". Could not persist to localStorage (quota limit). ");
+        return;
+      }
+    }
+
     setStatus("Loaded " + rows.length + " rows from " + sourceName + ".");
   }
 
   applyUrlPrefsToControls();
   setupControls();
+
+  var cached = loadDataFromLocalStorage();
+  if (cached) {
+    try {
+      loadFromText(cached.text, cached.sourceName || "cached", { skipCacheWrite: true });
+      setStatus("Loaded " + state.rows.length + " rows from cached data.");
+    } catch (_err) {
+      window.localStorage.removeItem(STORAGE_KEY);
+    }
+  }
 })();

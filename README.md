@@ -164,6 +164,7 @@ Features:
 - search, category/subcategory filters, sorting, pagination
 - shows `details_url` links and basic stats
 - filter/sort/page state is mirrored in URL query params for refresh/share
+- tries to cache the last loaded dataset in browser localStorage (small/medium files)
 
 Local test:
 
