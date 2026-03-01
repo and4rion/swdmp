@@ -175,13 +175,18 @@
 
   function numericMaybe(value) {
     if (value == null) return null;
-    var n = Number(String(value).replace(/\s+/g, ""));
+    var raw = String(value).trim();
+    if (!raw) return null;
+    var normalized = raw.replace(/\s+/g, "").replace(/,/g, ".");
+    var n = Number(normalized);
     return Number.isFinite(n) ? n : null;
   }
 
   function dateMaybe(value) {
     if (!value) return null;
-    var t = Date.parse(String(value));
+    var s = String(value).trim();
+    if (!/^\d{4}-\d{2}-\d{2}(?:[T\s].*)?$/.test(s)) return null;
+    var t = Date.parse(s);
     return Number.isFinite(t) ? t : null;
   }
 
