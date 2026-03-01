@@ -1,0 +1,170 @@
+:root {
+  color-scheme: light;
+  --bg: #f7f7f5;
+  --card: #ffffff;
+  --line: #d9ddd5;
+  --ink: #1f2a1f;
+  --muted: #516053;
+  --accent: #2d6a4f;
+  --accent-soft: #dff2e8;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", "Noto Sans", sans-serif;
+  background: linear-gradient(180deg, #eef3ec 0%, var(--bg) 320px);
+  color: var(--ink);
+}
+
+.app {
+  max-width: none;
+  width: 100%;
+  margin: 0 auto;
+  padding: 1rem 1.1rem;
+}
+
+.hero h1 {
+  margin: 0;
+  font-size: 1.7rem;
+}
+
+.hero p {
+  margin-top: 0.4rem;
+  color: var(--muted);
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0.9rem;
+  margin-top: 0.8rem;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 170px 1fr auto;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.6rem;
+}
+
+.row.compact {
+  grid-template-columns: 80px 1fr 90px 1fr;
+}
+
+.row:last-child {
+  margin-bottom: 0;
+}
+
+label {
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+input,
+select,
+button {
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
+}
+
+button {
+  cursor: pointer;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+button.ghost {
+  background: #fff;
+  color: var(--accent);
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(120px, 1fr));
+  gap: 0.5rem;
+}
+
+.stat {
+  background: var(--accent-soft);
+  border: 1px solid #bfdecc;
+  border-radius: 8px;
+  padding: 0.5rem;
+}
+
+.stat .k {
+  display: block;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.stat .v {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.scroll-wrap {
+  overflow: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+th,
+td {
+  border-bottom: 1px solid var(--line);
+  padding: 0.45rem;
+  vertical-align: top;
+  text-align: left;
+}
+
+th {
+  position: sticky;
+  top: 0;
+  background: #f2f5f0;
+  z-index: 1;
+}
+
+td a {
+  color: #1d4d8f;
+  text-decoration: none;
+}
+
+td a:hover {
+  text-decoration: underline;
+}
+
+.pagination {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.5rem 0;
+}
+
+.hint {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+@media (max-width: 900px) {
+  .row,
+  .row.compact {
+    grid-template-columns: 1fr;
+  }
+
+  .stats {
+    grid-template-columns: repeat(2, minmax(120px, 1fr));
+  }
+}

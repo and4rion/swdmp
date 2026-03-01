@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sharewood Archive Viewer</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <main class="app">
+    <header class="hero">
+      <h1>Sharewood Archive Viewer</h1>
+      <p>Load a local CSV/JSONL file or fetch one from this GitHub Pages site.</p>
+    </header>
+
+    <section class="card controls">
+      <div class="row">
+        <label for="fileInput">Local file</label>
+        <input id="fileInput" type="file" accept=".csv,.jsonl,.json,.txt">
+      </div>
+
+      <div class="row">
+        <label for="urlInput">URL (same-origin or CORS-enabled)</label>
+        <input id="urlInput" type="url" placeholder="./data/torrents.jsonl">
+        <button id="loadUrlBtn" type="button">Load URL</button>
+      </div>
+
+      <div class="row compact">
+        <label for="searchInput">Search</label>
+        <input id="searchInput" type="search" placeholder="Title, category, id...">
+
+        <label for="categoryFilter">Category</label>
+        <select id="categoryFilter">
+          <option value="">All</option>
+        </select>
+
+        <label for="subcategoryFilter">Subcategory</label>
+        <select id="subcategoryFilter">
+          <option value="">All</option>
+        </select>
+      </div>
+
+      <div class="row compact">
+        <label for="sortField">Sort by</label>
+        <select id="sortField"></select>
+
+        <label for="sortDirection">Direction</label>
+        <select id="sortDirection">
+          <option value="desc">Desc</option>
+          <option value="asc">Asc</option>
+        </select>
+      </div>
+
+      <div class="row">
+        <label for="hideNoSeed">Seeds filter</label>
+        <label>
+          <input id="hideNoSeed" type="checkbox">
+          Hide torrents with seeds &lt; 1
+        </label>
+      </div>
+    </section>
+
+    <section class="card stats" id="stats"></section>
+
+    <section class="card table-wrap">
+      <div class="pagination" id="paginationTop"></div>
+      <div class="scroll-wrap">
+        <table id="resultTable">
+          <thead></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="pagination" id="paginationBottom"></div>
+    </section>
+
+    <p class="hint" id="status">No data loaded yet.</p>
+  </main>
+
+  <script src="./app.js"></script>
+</body>
+</html>
