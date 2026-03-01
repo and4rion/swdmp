@@ -304,6 +304,8 @@
     var start = (state.page - 1) * PAGE_SIZE;
     var end = start + PAGE_SIZE;
     var rows = state.filtered.slice(start, end);
+    var activeSortField = ui.sortField.value;
+    var activeSortDirection = ui.sortDirection.value;
 
     ui.tableHead.innerHTML = "";
     ui.tableBody.innerHTML = "";
@@ -311,7 +313,23 @@
     var trh = document.createElement("tr");
     cols.forEach(function (col) {
       var th = document.createElement("th");
-      th.textContent = col;
+      th.style.cursor = "pointer";
+      var indicator = "";
+      if (col === activeSortField) {
+        indicator = activeSortDirection === "asc" ? " ▲" : " ▼";
+      }
+      th.textContent = col + indicator;
+      th.title = "Click to sort";
+      th.addEventListener("click", function () {
+        if (ui.sortField.value === col) {
+          ui.sortDirection.value = ui.sortDirection.value === "asc" ? "desc" : "asc";
+        } else {
+          ui.sortField.value = col;
+          ui.sortDirection.value = "desc";
+        }
+        state.page = 1;
+        applyFilters();
+      });
       trh.appendChild(th);
     });
     ui.tableHead.appendChild(trh);
