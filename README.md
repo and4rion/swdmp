@@ -161,9 +161,9 @@ A static viewer is available in `viewer/`:
 
 Features:
 - load local `CSV` or `JSONL` file
-- load data by URL (same-origin or CORS-enabled)
 - search, category/subcategory filters, sorting, pagination
 - shows `details_url` links and basic stats
+- filter/sort/page state is mirrored in URL query params for refresh/share
 
 Local test:
 
@@ -175,12 +175,6 @@ Then open:
 
 ```text
 http://127.0.0.1:8080/viewer/
-```
-
-Autoload from URL query:
-
-```text
-http://127.0.0.1:8080/viewer/?data=../output/torrents.jsonl
 ```
 
 GitHub Pages deployment:

@@ -40,8 +40,56 @@
     paginationBottom: document.getElementById("paginationBottom"),
   };
 
+  var urlPrefs = parseUrlState();
+
   function setStatus(message) {
     ui.status.textContent = message;
+  }
+
+  function parsePositiveInt(value) {
+    var n = Number(value);
+    if (!Number.isFinite(n)) return null;
+    if (n < 1) return null;
+    return Math.floor(n);
+  }
+
+  function parseUrlState() {
+    var params = new URLSearchParams(window.location.search);
+    return {
+      q: params.get("q") || "",
+      category: params.get("cat") || "",
+      subcategory: params.get("sub") || "",
+      sortField: params.get("sort") || "",
+      sortDirection: params.get("dir") === "asc" ? "asc" : "desc",
+      hideNoSeed: params.get("noseed") === "1",
+      page: parsePositiveInt(params.get("p")) || 1,
+    };
+  }
+
+  function applyUrlPrefsToControls() {
+    ui.searchInput.value = urlPrefs.q;
+    ui.categoryFilter.value = urlPrefs.category;
+    ui.subcategoryFilter.value = urlPrefs.subcategory;
+    ui.sortDirection.value = urlPrefs.sortDirection;
+    ui.hideNoSeed.checked = urlPrefs.hideNoSeed;
+  }
+
+  function syncUrlState() {
+    var params = new URLSearchParams();
+    var q = ui.searchInput.value.trim();
+    if (q) params.set("q", q);
+    if (ui.categoryFilter.value) params.set("cat", ui.categoryFilter.value);
+    if (ui.subcategoryFilter.value) params.set("sub", ui.subcategoryFilter.value);
+    if (ui.sortField.value) params.set("sort", ui.sortField.value);
+    if (ui.sortDirection.value && ui.sortDirection.value !== "desc") {
+      params.set("dir", ui.sortDirection.value);
+    }
+    if (ui.hideNoSeed.checked) params.set("noseed", "1");
+    if (state.page > 1) params.set("p", String(state.page));
+
+    var query = params.toString();
+    var nextUrl = window.location.pathname + (query ? "?" + query : "") + window.location.hash;
+    window.history.replaceState(null, "", nextUrl);
   }
 
   function detectFormat(text, sourceName) {
@@ -431,6 +479,7 @@
     renderStats();
     renderTable();
     renderPagination();
+    syncUrlState();
     setStatus("Showing " + state.filtered.length + " rows.");
   }
 
@@ -475,16 +524,22 @@
 
     state.rows = rows;
     state.columns = buildColumns(rows);
-    state.page = 1;
+    state.page = urlPrefs.page;
 
     setSelectOptions(ui.categoryFilter, uniqueValues(rows, "category"), true);
     setSelectOptions(ui.subcategoryFilter, uniqueValues(rows, "subcategory"), true);
     setSelectOptions(ui.sortField, state.columns, false);
-    if (state.columns.indexOf("uploaded") !== -1) ui.sortField.value = "uploaded";
+    if (urlPrefs.sortField && state.columns.indexOf(urlPrefs.sortField) !== -1) {
+      ui.sortField.value = urlPrefs.sortField;
+    } else if (state.columns.indexOf("uploaded") !== -1) {
+      ui.sortField.value = "uploaded";
+    }
+    ui.sortDirection.value = urlPrefs.sortDirection;
 
     applyFilters();
     setStatus("Loaded " + rows.length + " rows from " + sourceName + ".");
   }
 
+  applyUrlPrefsToControls();
   setupControls();
 })();
