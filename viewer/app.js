@@ -3,6 +3,8 @@
 
   var PAGE_SIZE = 100;
   var STORAGE_KEY = "sharewood-archive-viewer-cache-v1";
+  var DEBUG = new URLSearchParams(window.location.search).get("debug") === "1";
+  var jsZipLoadPromise = null;
   var state = {
     rows: [],
     filtered: [],
@@ -45,6 +47,14 @@
 
   function setStatus(message) {
     ui.status.textContent = message;
+    debugLog("status:", message);
+  }
+
+  function debugLog() {
+    if (!DEBUG) return;
+    var args = Array.prototype.slice.call(arguments);
+    args.unshift("[viewer]");
+    console.log.apply(console, args);
   }
 
   function parsePositiveInt(value) {
@@ -94,7 +104,11 @@
   }
 
   function saveDataToLocalStorage(text, sourceName) {
-    if (typeof text !== "string" || text.length > 4_500_000) {
+    if (typeof text !== "string" || text.length > 4500000) {
+      debugLog("cache skip: input too large", {
+        sourceName: sourceName,
+        length: typeof text === "string" ? text.length : null,
+      });
       return false;
     }
     try {
@@ -104,8 +118,17 @@
         savedAt: new Date().toISOString(),
       };
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+      debugLog("cache write ok", {
+        sourceName: payload.sourceName,
+        textLength: payload.text.length,
+        savedAt: payload.savedAt,
+      });
       return true;
-    } catch (_err) {
+    } catch (err) {
+      debugLog("cache write failed", {
+        name: err && err.name,
+        message: err && err.message,
+      });
       return false;
     }
   }
@@ -113,11 +136,26 @@
   function loadDataFromLocalStorage() {
     try {
       var raw = window.localStorage.getItem(STORAGE_KEY);
-      if (!raw) return null;
+      if (!raw) {
+        debugLog("cache read: empty");
+        return null;
+      }
       var payload = JSON.parse(raw);
-      if (!payload || typeof payload.text !== "string") return null;
+      if (!payload || typeof payload.text !== "string") {
+        debugLog("cache read: invalid payload");
+        return null;
+      }
+      debugLog("cache read ok", {
+        sourceName: payload.sourceName,
+        textLength: payload.text.length,
+        savedAt: payload.savedAt,
+      });
       return payload;
-    } catch (_err) {
+    } catch (err) {
+      debugLog("cache read failed", {
+        name: err && err.name,
+        message: err && err.message,
+      });
       return null;
     }
   }
@@ -130,6 +168,102 @@
     if (trimmed.startsWith("{")) return "jsonl";
     if (trimmed.startsWith("[")) return "json-array";
     return "csv";
+  }
+
+  function stripGzSuffix(name) {
+    var lowered = (name || "").toLowerCase();
+    if (!lowered.endsWith(".gz")) return name;
+    return name.slice(0, -3);
+  }
+
+  function preferredArchiveEntryName(names) {
+    if (!names.length) return null;
+    var preferredOrder = [".jsonl", ".csv", ".json", ".txt"];
+    for (var i = 0; i < preferredOrder.length; i += 1) {
+      var ext = preferredOrder[i];
+      for (var j = 0; j < names.length; j += 1) {
+        if (names[j].toLowerCase().endsWith(ext)) return names[j];
+      }
+    }
+    return names[0];
+  }
+
+  function ensureJsZip() {
+    if (window.JSZip) return Promise.resolve(window.JSZip);
+    if (jsZipLoadPromise) return jsZipLoadPromise;
+
+    jsZipLoadPromise = new Promise(function (resolve, reject) {
+      var script = document.createElement("script");
+      script.src = "https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js";
+      script.async = true;
+      script.onload = function () {
+        if (window.JSZip) {
+          resolve(window.JSZip);
+        } else {
+          reject(new Error("JSZip loaded but unavailable in window."));
+        }
+      };
+      script.onerror = function () {
+        reject(new Error("Failed to load JSZip library from CDN."));
+      };
+      document.head.appendChild(script);
+    });
+
+    return jsZipLoadPromise;
+  }
+
+  function streamToText(stream) {
+    return new Response(stream).text();
+  }
+
+  async function extractTextFromZip(file) {
+    debugLog("archive: loading jszip");
+    var JSZip = await ensureJsZip();
+    var archive = await JSZip.loadAsync(await file.arrayBuffer());
+    var entryNames = Object.keys(archive.files).filter(function (name) {
+      return !archive.files[name].dir;
+    });
+    if (!entryNames.length) {
+      throw new Error("ZIP archive is empty.");
+    }
+
+    var entryName = preferredArchiveEntryName(entryNames);
+    var entry = archive.files[entryName];
+    var text = await entry.async("string");
+    debugLog("archive: selected entry", { entryName: entryName, textLength: text.length });
+    return {
+      text: text,
+      sourceName: entryName,
+    };
+  }
+
+  async function extractTextFromGzip(file) {
+    if (typeof DecompressionStream === "undefined") {
+      throw new Error("This browser does not support .gz decompression (DecompressionStream missing).");
+    }
+    var ds = new DecompressionStream("gzip");
+    var decompressed = file.stream().pipeThrough(ds);
+    var text = await streamToText(decompressed);
+    var sourceName = stripGzSuffix(file.name || "archive");
+    debugLog("archive: gzip decompressed", { sourceName: sourceName, textLength: text.length });
+    return {
+      text: text,
+      sourceName: sourceName,
+    };
+  }
+
+  async function readUploadFile(file) {
+    var name = (file.name || "").toLowerCase();
+    if (name.endsWith(".zip")) {
+      return extractTextFromZip(file);
+    }
+    if (name.endsWith(".gz")) {
+      return extractTextFromGzip(file);
+    }
+    return {
+      text: await file.text(),
+      sourceName: file.name || "uploaded-file",
+    };
   }
 
   function parseJsonLines(text) {
@@ -528,21 +662,31 @@
     ui.fileInput.addEventListener("change", function () {
       var file = ui.fileInput.files && ui.fileInput.files[0];
       if (!file) return;
-      var reader = new FileReader();
-      reader.onload = function () {
-        try {
-          loadFromText(String(reader.result || ""), file.name);
-        } catch (err) {
+      setStatus("Loading file...");
+      readUploadFile(file)
+        .then(function (payload) {
+          loadFromText(payload.text, payload.sourceName || file.name);
+        })
+        .catch(function (err) {
           setStatus("Failed to parse file: " + err.message);
-        }
-      };
-      reader.readAsText(file);
+          debugLog("file load failed", {
+            fileName: file && file.name,
+            name: err && err.name,
+            message: err && err.message,
+          });
+        });
     });
   }
 
   function loadFromText(text, sourceName, options) {
     options = options || {};
+    debugLog("loadFromText start", {
+      sourceName: sourceName,
+      textLength: text.length,
+      skipCacheWrite: !!options.skipCacheWrite,
+    });
     var format = detectFormat(text, sourceName);
+    debugLog("detected format", format);
     var rows;
     if (format === "jsonl") rows = parseJsonLines(text);
     else if (format === "json-array") rows = parseJsonArray(text);
@@ -550,8 +694,10 @@
 
     rows = normalizeRows(rows);
     if (!rows.length) {
+      debugLog("loadFromText: no rows");
       throw new Error("No rows found in file.");
     }
+    debugLog("rows parsed", rows.length);
 
     state.rows = rows;
     state.columns = buildColumns(rows);
@@ -588,8 +734,13 @@
     try {
       loadFromText(cached.text, cached.sourceName || "cached", { skipCacheWrite: true });
       setStatus("Loaded " + state.rows.length + " rows from cached data.");
-    } catch (_err) {
+    } catch (err) {
+      debugLog("cache restore failed", {
+        name: err && err.name,
+        message: err && err.message,
+      });
       window.localStorage.removeItem(STORAGE_KEY);
+      debugLog("cache cleared after restore failure");
     }
   }
 })();

@@ -160,11 +160,15 @@ A static viewer is available in `viewer/`:
 - `viewer/style.css`
 
 Features:
-- load local `CSV` or `JSONL` file
+- load local `CSV`, `JSONL`, `.zip` (single archive entry), or `.gz` file
 - search, category/subcategory filters, sorting, pagination
 - shows `details_url` links and basic stats
 - filter/sort/page state is mirrored in URL query params for refresh/share
 - tries to cache the last loaded dataset in browser localStorage (small/medium files)
+
+Notes for archive uploads:
+- `.zip` extraction uses JSZip loaded from CDN at runtime.
+- `.gz` extraction uses browser `DecompressionStream` support.
 
 Local test:
 
