@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 import posixpath
+import sys
 from dataclasses import dataclass
 from typing import Any
 
@@ -22,6 +23,16 @@ class Torrent:
     name: str
     state: str
     save_path: str
+
+
+class Colors:
+    RESET = "\033[0m"
+    BOLD = "\033[1m"
+    RED = "\033[31m"
+    GREEN = "\033[32m"
+    YELLOW = "\033[33m"
+    BLUE = "\033[34m"
+    CYAN = "\033[36m"
 
 
 def parse_args() -> argparse.Namespace:
@@ -67,6 +78,17 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=DEFAULT_TIMEOUT,
         help="HTTP timeout in seconds (default: %(default)s)",
+    )
+    parser.add_argument(
+        "--ambiguous-details-limit",
+        type=int,
+        default=10,
+        help="How many donor rows to print for ambiguous matches (default: %(default)s)",
+    )
+    parser.add_argument(
+        "--no-color",
+        action="store_true",
+        help="Disable ANSI colored output",
     )
     return parser.parse_args()
 
@@ -159,8 +181,27 @@ def short_hash(value: str) -> str:
     return value[:12]
 
 
+def normalized_dir(path: str) -> str:
+    return path.rstrip("/\\")
+
+
+def supports_color(disabled: bool) -> bool:
+    if disabled:
+        return False
+    if os.getenv("NO_COLOR"):
+        return False
+    return sys.stdout.isatty()
+
+
+def paint(enabled: bool, text: str, *styles: str) -> str:
+    if not enabled or not styles:
+        return text
+    return "".join(styles) + text + Colors.RESET
+
+
 def main() -> int:
     args = parse_args()
+    use_color = supports_color(args.no_color)
 
     if args.allow_ambiguous_match:
         args.require_unique_match = False
@@ -181,8 +222,19 @@ def main() -> int:
     all_torrents = client.list_torrents("all")
     healthy = [t for t in all_torrents if t.hash not in {e.hash for e in errored}]
 
-    print(f"Found {len(errored)} errored torrents")
-    print(f"Found {len(healthy)} candidate donor torrents")
+    print(
+        paint(
+            use_color, f"Found {len(errored)} errored torrents", Colors.BOLD, Colors.RED
+        )
+    )
+    print(
+        paint(
+            use_color,
+            f"Found {len(healthy)} candidate donor torrents",
+            Colors.BOLD,
+            Colors.CYAN,
+        )
+    )
 
     donor_index: dict[str, list[Torrent]] = {}
     for donor in healthy:
@@ -201,7 +253,8 @@ def main() -> int:
     unchanged = 0
 
     mode = "APPLY" if args.apply else "DRY-RUN"
-    print(f"Mode: {mode}")
+    mode_color = Colors.GREEN if args.apply else Colors.YELLOW
+    print(f"Mode: {paint(use_color, mode, Colors.BOLD, mode_color)}")
 
     for bad in errored:
         try:
@@ -209,55 +262,117 @@ def main() -> int:
             bad_fp = build_fingerprint(bad_files)
         except Exception as exc:  # noqa: BLE001
             print(
-                f"[skip error] {short_hash(bad.hash)} {bad.name}: unable to read files ({exc})"
+                paint(
+                    use_color,
+                    f"[skip error] {short_hash(bad.hash)} {bad.name}: unable to read files ({exc})",
+                    Colors.YELLOW,
+                )
             )
             continue
 
         matches = donor_index.get(bad_fp, [])
         if not matches:
             skipped_no_match += 1
-            print(f"[no match] {short_hash(bad.hash)} {bad.name}")
+            print(
+                paint(
+                    use_color,
+                    f"[no match] {short_hash(bad.hash)} {bad.name}",
+                    Colors.YELLOW,
+                )
+            )
             continue
 
-        if args.require_unique_match and len(matches) != 1:
+        distinct_locations = sorted(
+            {normalized_dir(item.save_path) for item in matches if item.save_path}
+        )
+
+        if (
+            args.require_unique_match
+            and len(matches) != 1
+            and len(distinct_locations) > 1
+        ):
             skipped_ambiguous += 1
-            hashes = ", ".join(short_hash(item.hash) for item in matches[:5])
-            suffix = " ..." if len(matches) > 5 else ""
             print(
-                f"[ambiguous] {short_hash(bad.hash)} {bad.name}: "
-                f"{len(matches)} donors ({hashes}{suffix})"
+                paint(
+                    use_color,
+                    f"[ambiguous] {short_hash(bad.hash)} {bad.name}: "
+                    f"{len(matches)} donors point to {len(distinct_locations)} different locations",
+                    Colors.YELLOW,
+                )
             )
+
+            limit = max(0, args.ambiguous_details_limit)
+            for idx, donor in enumerate(matches[:limit], start=1):
+                print(
+                    f"      {idx}. {short_hash(donor.hash)} state={donor.state or '-'}\n"
+                    f"         name={donor.name}\n"
+                    f"         path={donor.save_path or '-'}"
+                )
+
+            if len(matches) > limit:
+                print(f"      ... {len(matches) - limit} more donor(s)")
+
+            loc_preview = ", ".join(distinct_locations[:3])
+            loc_suffix = " ..." if len(distinct_locations) > 3 else ""
+            print(f"      locations={loc_preview}{loc_suffix}")
             continue
 
         donor = matches[0]
         target_location = donor.save_path
 
+        if len(matches) > 1 and len(distinct_locations) == 1:
+            print(
+                paint(
+                    use_color,
+                    f"[multi-donor same path] {short_hash(bad.hash)} {bad.name}: "
+                    f"{len(matches)} donors agree on {target_location}",
+                    Colors.CYAN,
+                )
+            )
+
         if bad.save_path.rstrip("/") == target_location.rstrip("/"):
             unchanged += 1
-            print(f"[already set] {short_hash(bad.hash)} {bad.name}: {target_location}")
+            print(
+                paint(
+                    use_color,
+                    f"[already set] {short_hash(bad.hash)} {bad.name}: {target_location}",
+                    Colors.BLUE,
+                )
+            )
             continue
 
         proposed += 1
         print(
-            f"[fix] {short_hash(bad.hash)} {bad.name}\n"
-            f"      donor={short_hash(donor.hash)} {donor.name}\n"
-            f"      from={bad.save_path}\n"
-            f"      to  ={target_location}"
+            paint(
+                use_color,
+                f"[fix] {short_hash(bad.hash)} {bad.name}",
+                Colors.GREEN,
+                Colors.BOLD,
+            )
         )
+        print(f"      donor={short_hash(donor.hash)} {donor.name}")
+        print(f"      from={bad.save_path}")
+        print(f"      to  ={target_location}")
 
         if args.apply:
             try:
                 client.set_location(bad.hash, target_location)
                 applied += 1
             except Exception as exc:  # noqa: BLE001
-                print(f"      apply failed: {exc}")
+                print(paint(use_color, f"      apply failed: {exc}", Colors.RED))
 
-    print("\nDone")
-    print(f"- Proposed fixes: {proposed}")
-    print(f"- Applied fixes: {applied}")
-    print(f"- Skipped (no match): {skipped_no_match}")
-    print(f"- Skipped (ambiguous): {skipped_ambiguous}")
-    print(f"- Already correct: {unchanged}")
+    print(paint(use_color, "\nDone", Colors.BOLD))
+    print(paint(use_color, f"- Proposed fixes: {proposed}", Colors.CYAN))
+    print(paint(use_color, f"- Applied fixes: {applied}", Colors.GREEN))
+    print(paint(use_color, f"- Skipped (no match): {skipped_no_match}", Colors.YELLOW))
+    print(
+        paint(
+            use_color,
+            f"- Skipped (ambiguous): {skipped_ambiguous}",
+            Colors.YELLOW,
+        )
+    )
+    print(paint(use_color, f"- Already correct: {unchanged}", Colors.BLUE))
     return 0
 
 

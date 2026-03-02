@@ -62,3 +62,4 @@ python3 qbt_cure_errored.py
 - Script runs in dry-run mode unless `--apply` is provided.
 - By default, it skips ambiguous matches (multiple donors with same fingerprint).
 - Use `--allow-ambiguous-match` only if you explicitly want first-match behavior.
+- Output is colored when running in a TTY; disable with `--no-color` or `NO_COLOR=1`.
