@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>La Cale Torrent Reup Tool</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app">
+      <section class="panel">
+        <h1>La Cale Torrent Reup Tool</h1>
+        <p class="lead">
+          Pure client-side torrent editor. Your file is processed in-browser only.
+        </p>
+
+        <label for="passkey">Passkey</label>
+        <input
+          id="passkey"
+          name="passkey"
+          type="text"
+          placeholder="Paste your passkey"
+          autocomplete="off"
+          spellcheck="false"
+        />
+
+        <label for="torrentFile">Torrent file</label>
+        <input id="torrentFile" name="torrentFile" type="file" accept=".torrent" />
+
+        <button id="processBtn" type="button">Process and download</button>
+
+        <ul class="rules">
+          <li>Tracker is set to <code>https://tracker.la-cale.space/announce?passkey=...</code></li>
+          <li>Creator and extra top-level metadata are removed</li>
+          <li>Source in <code>info</code> is set to <code>La Cale reup</code></li>
+        </ul>
+
+        <section id="details" class="details" hidden>
+          <h2>Details</h2>
+          <dl class="details-grid">
+            <dt>Torrent name</dt>
+            <dd>
+              <span class="details-label">Current:</span>
+              <code id="currentName">-</code>
+              <span class="details-label">Output file:</span>
+              <code id="changedName">-</code>
+            </dd>
+
+            <dt>Info hash</dt>
+            <dd>
+              <span class="details-label">Current:</span>
+              <code id="currentHash">-</code>
+              <span class="details-label">Changed:</span>
+              <code id="changedHash">-</code>
+            </dd>
+
+            <dt>Tracker</dt>
+            <dd>
+              <span class="details-label">Current:</span>
+              <code id="currentTracker">-</code>
+              <span class="details-label">Changed:</span>
+              <code id="changedTracker">-</code>
+            </dd>
+
+            <dt>Source</dt>
+            <dd>
+              <span class="details-label">Current:</span>
+              <code id="currentSource">-</code>
+              <span class="details-label">Changed:</span>
+              <code id="changedSource">-</code>
+            </dd>
+
+            <dt>Creator</dt>
+            <dd>
+              <span class="details-label">Current:</span>
+              <code id="currentCreator">-</code>
+              <span class="details-label">Changed:</span>
+              <code id="changedCreator">removed</code>
+            </dd>
+
+            <dt>Removed top-level keys</dt>
+            <dd><code id="removedKeys">-</code></dd>
+          </dl>
+
+          <details id="fileTreeWrap" class="file-tree">
+            <summary>Files</summary>
+            <div id="fileTree"></div>
+          </details>
+        </section>
+
+        <p id="status" class="status" role="status" aria-live="polite"></p>
+      </section>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
