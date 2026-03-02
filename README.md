@@ -187,3 +187,38 @@ GitHub Pages deployment:
 2. In repository settings, enable GitHub Pages from `main` branch and root folder.
 3. Open `https://<your-user>.github.io/<repo>/viewer/`.
 4. Optionally commit an archive file under `viewer/data/` and open with `?data=./data/<file>`.
+
+## Detail pages dump (NFO + presentation + info hash)
+
+Use `details_scraper.py` to enrich listing rows with data from each torrent detail page.
+
+Test on one known URL via proxy:
+
+```bash
+.venv/bin/python details_scraper.py \
+  --proxy-base "http://127.0.0.1:8787" \
+  --single-url "https://www.sharewood.tv/torrents/basic-instinct-1992-multi-1080p-bdrip-aac-avc-clapapatte.1060" \
+  --single-id 1060 \
+  --out output/torrent_details.jsonl
+```
+
+Full enrichment from listing dump:
+
+```bash
+.venv/bin/python details_scraper.py \
+  --proxy-base "http://127.0.0.1:8787" \
+  --in output/torrents.jsonl \
+  --out output/torrent_details.jsonl \
+  --resume \
+  --delay 0.8
+```
+
+Output fields include:
+- `torrent_id`
+- `details_url`
+- `title`
+- `info_hash`
+- `nfo`
+- `presentation_html`
+- `presentation_text`
+- `scraped_at`
